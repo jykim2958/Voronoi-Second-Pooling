@@ -1,3 +1,6 @@
+'''
+This implementation is adopted from https://github.com/shenyanqing1105/ForestLPR-CVPR2025/blob/main/minkloc_scripts/intra-sequence.py
+'''
 # Warsaw University of Technology
 
 # Evaluation using PointNetVLAD evaluation protocol and test sets
@@ -5,7 +8,6 @@
 import os
 import sys
 import time
-# sys.path.append("/home/jykim/workspace/MinkLoc3Dv2")
 sys.path.append(f"{os.getcwd()}")
 from sklearn.neighbors import KDTree
 import numpy as np

@@ -7,11 +7,8 @@ import MinkowskiEngine as ME
 import math
 
 from models.layers.netvlad import NetVLADLoupe
-from models.layers.otp import get_matching_probs_2
-from models.layers.cluster_norm import ClusterNormZCA, ClusterNormCholesky
 from models.layers.ZCANorm import ZCANormSVDPIv2 as ZCANormSVDPI
-# from models.layers.ZCANorm import ZCANormSVDPIv3 as ZCANormSVDPI
-from models.layers.ZCANorm import ZCANormSVDPI_No_Shrink
+# from models.layers.ZCANorm import ZCANormSVDPI_No_Shrink
 
 def intra_normalization(x):
 
@@ -144,8 +141,6 @@ class VoronoiSecond(nn.Module):
         num_channels (int): The number of channels of the inputs (d).
         num_clusters (int): The number of clusters in the model (m).
         cluster_dim (int): The number of channels of the clusters (l).
-        token_dim (int): The dimension of the global scene token (g).
-        dropout (float): The dropout rate.
     """
     def __init__(self, input_dim, output_dim, num_clusters=64, cluster_dim=128, is_sqrt=False) -> None:
         super().__init__()
@@ -156,76 +151,19 @@ class VoronoiSecond(nn.Module):
         self.cluster_dim = cluster_dim
         self.is_sqrt = is_sqrt
 
-        # NOTE BatchNorm
         self.proj = nn.Sequential(
             nn.Conv1d(self.num_channels, 256, 1),
             nn.BatchNorm1d(256),
             nn.GELU(),
             nn.Conv1d(256, self.cluster_dim, 1)
         )
-        # MLP for score matrix S
         self.score = nn.Sequential(
             nn.Conv1d(self.num_channels, 256, 1),
             nn.BatchNorm1d(256),
             nn.GELU(),
             nn.Conv1d(256, self.num_clusters, 1),
         )
-        # # NOTE Change Order
-        # self.proj = nn.Sequential(
-        #     nn.Conv1d(self.num_channels, 256, 1),
-        #     nn.GELU(),
-        #     nn.BatchNorm1d(256),
-        #     nn.Conv1d(256, self.cluster_dim, 1)
-        # )
-        # # MLP for score matrix S
-        # self.score = nn.Sequential(
-        #     nn.Conv1d(self.num_channels, 256, 1),
-        #     nn.GELU(),
-        #     nn.BatchNorm1d(256),
-        #     nn.Conv1d(256, self.num_clusters, 1)
-        # )
-
-        # # NOTE InstanceNorm
-        # self.proj = nn.Sequential(
-        #     nn.Conv1d(self.num_channels, 256, 1),
-        #     nn.InstanceNorm1d(256),
-        #     nn.GELU(),
-        #     nn.Conv1d(256, self.cluster_dim, 1)
-        # )
-        # # MLP for score matrix S
-        # self.score = nn.Sequential(
-        #     nn.Conv1d(self.num_channels, 256, 1),
-        #     nn.InstanceNorm1d(256),
-        #     nn.GELU(),
-        #     nn.Conv1d(256, self.num_clusters, 1)
-        # )
-
-        # # NOTE LayerNorm
-        # self.proj = nn.Sequential(
-        #     nn.Linear(self.num_channels, 256),
-        #     nn.LayerNorm(256),
-        #     nn.GELU(),
-        #     nn.Linear(256, self.cluster_dim)
-        # )
-        # # MLP for score matrix S
-        # self.score = nn.Sequential(
-        #     nn.Linear(self.num_channels, 256),
-        #     nn.LayerNorm(256),
-        #     nn.GELU(),
-        #     nn.Linear(256, self.num_clusters)
-        # )
-
-        # self.DPN = DPN(self.num_clusters) # NOTE
-        # self.cluster_norm = nn.Identity()   # NOTE only scaling
-        # self.cluster_norm = nn.BatchNorm1d(self.cluster_dim, affine=False, track_running_stats=False) # NOTE BatchNorm ablation
-        # self.cluster_norm = nn.BatchNorm1d(self.cluster_dim, affine=False, track_running_stats=True)    # NOTE BatchNorm ablation with running track
-        # self.cluster_norm = nn.LayerNorm([self.cluster_dim, self.num_clusters], elementwise_affine=False) # NOTE LayerNorm ablation
-        # self.cluster_norm = nn.InstanceNorm1d(self.cluster_dim) # NOTE ver1 # SOTA !!!!
-        # self.cluster_norm = nn.InstanceNorm1d(self.num_clusters) # NOTE ver2
-        # self.cluster_norm = ClusterNorm1d(self.cluster_dim) # NOTE custom whitenings ==> instance-wise Cholesky(v7)
-        self.cluster_norm = ZCANormSVDPI(self.cluster_dim, self.num_clusters, affine=False) # NOTE ZCA for Instance-wise
-        # self.cluster_norm = intra_normalization # NOTE All about VLAD intra-normalization
-        # self.cluster_norm = L2_normalization    # NOTE just a L2 normalization
+        self.cluster_norm = ZCANormSVDPI(self.cluster_dim, self.num_clusters, affine=False)
 
     def softmax_valid_len(self, x, lengths, dim):
         for i, valid_len in enumerate(lengths):
@@ -272,12 +210,6 @@ class VoronoiSecond(nn.Module):
     def forward(self, x: ME.SparseTensor):
         # Transform ME sparse tensor to torch tensor
         features = x.decomposed_features
-        
-        # ### NOTE
-        # features = torch.nn.utils.rnn.pad_sequence(features, batch_first=True)
-        # features = features.permute(0, 2, 1) # NOTE
-        # features = nn.functional.relu(features) # B x C_in x N
-        # ###
 
         lengths = [len(feat) for feat in features]
         features = torch.nn.utils.rnn.pad_sequence(features, batch_first=True)
@@ -285,34 +217,8 @@ class VoronoiSecond(nn.Module):
         # Simple MLPs to compute features and scores
         f = self.proj(features)  # B x C_out x N
         p = self.score(features) # B x Num_Cluster x N
-        # p = torch.softmax(p, dim=-1)  # NOTE
         p = self.softmax_valid_len(p, lengths, dim=-1)
-        # p = self.ssmax_valid_len(p, lengths, dim=-1, s=0.2)
-        # NOTE
-        # p = self.ssmax(p, dim=-1, s=0.2) # NOTE 0.2 => 1 => 0.4 => 0.1
-        # NOTE
-        # p = torch.softmax(p, dim=1)
-        # NOTE
-        # p = p - p.mean(dim=-1, keepdim=True)
-        # NOTE
-        # p = self.score(features.permute(0, 2, 1)).permute(0, 2, 1) # B x M x N
-        # Compute Global descriptor
-        # NOTE
-        # f_mask = torch.zeros_like(f); p_mask = torch.zeros_like(p)
-        # for i, valid_len in enumerate(lengths):
-        #     f_mask[i, :, :valid_len] = 1
-        #     p_mask[i, :, :valid_len] = 1
-        # f = torch.einsum('bcn, bmn -> bcm', f * f_mask, p * p_mask) # NOTE
         f = torch.einsum('bcn, bmn -> bcm', f, p) # NOTE
-        # # Compute Covariance Matrix
-        # f = self.cluster_bn(f).transpose(1, 2).flatten(1) / self.num_clusters
-        # f = self.cluster_norm(f).transpose(1, 2).flatten(1) / self.num_clusters            # NOTE ver1 # SOTA so far !!!
-        # f = self.cluster_norm(f.transpose(1, 2)).flatten(1) / self.num_clusters            # NOTE ver 2
-        # f = self.cluster_norm(f).transpose(1, 2).flatten(1)                                # NOTE no reciprocal 1/m
-        # f = self.cluster_norm(f).transpose(1, 2).flatten(1) / math.sqrt(self.num_clusters) # NOTE sqrt pretty good
-        # f = f.transpose(1, 2).flatten(1) / self.num_clusters                               # NOTE no norm
-        # f = f.transpose(1, 2).flatten(1)                                                   # NOTE do nothing for L2 norm later
-        # f = self.cluster_norm(f)                                                           # NOTE L2 & intra normalization !!!!
         # NOTE 1/M for WP, 1/sqrt(M) for Oxford
         if self.is_sqrt:
             f = self.cluster_norm(f).flatten(1) / math.sqrt(self.num_clusters)

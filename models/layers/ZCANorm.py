@@ -1,6 +1,6 @@
 '''
 Wang, Wei, et al. "Backpropagation-friendly eigendecomposition." Advances in Neural Information Processing Systems 32 (2019).
-https://github.com/cvlab-epfl/Power-Iteration-SVD
+This implementation is adopted from https://github.com/cvlab-epfl/Power-Iteration-SVD
 '''
 import torch
 from torch.nn.parameter import Parameter
@@ -376,11 +376,7 @@ class ZCANormSVDPIv2(nn.Module):
         length = self.cluster_dim
         for j in range(length):
             self.register_buffer('eigenvector-{}'.format(j), torch.ones(self.num_clusters, self.cluster_dim, 1),persistent=False)
-            # if j == 127:
-            #     self.register_buffer('eigenvector-{}'.format(j), torch.ones(self.num_clusters, self.cluster_dim, 1))
-            # else:
-            #     self.register_buffer('eigenvector-{}'.format(j), torch.ones(40, self.cluster_dim, 1))
- 
+
     def reset_parameters(self):
         if self.affine:
             self.weight.data.uniform_()
@@ -390,18 +386,6 @@ class ZCANormSVDPIv2(nn.Module):
         if input.dim() != 3:
             raise ValueError('expected 3D input (got {}D input)'.format(input.dim()))
 
-    # def mat_shrinkage(self, C, n):
-    #     I = torch.eye(self.cluster_dim).unsqueeze(0).to(C)
-    #     p = self.cluster_dim
-    #     trace = torch.mean(torch.diagonal(C, dim1=-2, dim2=-1), dim=-1, keepdim=True).unsqueeze(-1) # Tr(C) / p
-    #     F_hat = trace * I
-
-    #     second_trace = (C * C).sum(dim=-1).mean(dim=-1).unsqueeze(-1).unsqueeze(-1) # Tr(C^2) / p
-    #     numerator = torch.pow(p * trace, 2) - second_trace # Tr^2(C) - Tr(C^2) / p
-    #     denominator = (n - 1) * (second_trace - torch.pow(trace, 2)) # (n-1) * [Tr(C^2)/p - Tr^2(C)/p^2]
-    #     rho_oas = torch.clamp(numerator / denominator, max=1)
-    #     C = rho_oas * F_hat + (1-rho_oas) * C
-    #     return C
     def mat_shrinkage(self, C, n):
         # Rao-Blackwell Ledoit-Wolf
         I = torch.eye(self.cluster_dim).unsqueeze(0).to(C)
@@ -544,11 +528,6 @@ class ZCANormSVDPIv3(nn.Module):
         self.reset_parameters()
         # self.dict = self.state_dict()
 
-    # def create_dictionary(self):
-    #     length = self.cluster_dim
-    #     for j in range(length):
-    #         self.register_buffer('eigenvector-{}'.format(j), torch.ones(self.num_clusters, self.cluster_dim, 1))
- 
     def reset_parameters(self):
         if self.affine:
             self.weight.data.uniform_()
@@ -558,18 +537,6 @@ class ZCANormSVDPIv3(nn.Module):
         if input.dim() != 3:
             raise ValueError('expected 3D input (got {}D input)'.format(input.dim()))
 
-    # def mat_shrinkage(self, C, n):
-    #     I = torch.eye(self.cluster_dim).unsqueeze(0).to(C)
-    #     p = self.cluster_dim
-    #     trace = torch.mean(torch.diagonal(C, dim1=-2, dim2=-1), dim=-1, keepdim=True).unsqueeze(-1) # Tr(C) / p
-    #     F_hat = trace * I
-
-    #     second_trace = (C * C).sum(dim=-1).mean(dim=-1).unsqueeze(-1).unsqueeze(-1) # Tr(C^2) / p
-    #     numerator = torch.pow(p * trace, 2) - second_trace # Tr^2(C) - Tr(C^2) / p
-    #     denominator = (n - 1) * (second_trace - torch.pow(trace, 2)) # (n-1) * [Tr(C^2)/p - Tr^2(C)/p^2]
-    #     rho_oas = torch.clamp(numerator / denominator, max=1)
-    #     C = rho_oas * F_hat + (1-rho_oas) * C
-    #     return C
     def mat_shrinkage(self, C, n):
         # Rao-Blackwell Ledoit-Wolf
         I = torch.eye(self.cluster_dim).unsqueeze(0).to(C)
