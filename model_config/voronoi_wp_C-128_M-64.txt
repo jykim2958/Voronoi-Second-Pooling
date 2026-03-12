@@ -7,7 +7,11 @@ num_top_down=2
 conv0_kernel_size=5
 feature_size=256
 block=ECABasicBlock
-pooling=mymethod
+
+pooling=voronoi
+num_clusters=64
+cluster_dim=128
+is_sqrt=false
 
 coordinates=polar
 quantization_step=1,0.01,0.01

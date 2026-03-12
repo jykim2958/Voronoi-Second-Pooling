@@ -57,6 +57,12 @@ class ModelParams:
         self.conv0_kernel_size = params.getint('conv0_kernel_size', 5)
         self.block = params.get('block', 'BasicBlock')
         self.pooling = params.get('pooling', 'GeM')
+        # NOTE
+        if self.pooling == 'voronoi':
+            self.num_clusters = params.getint('num_clusters', 16)
+            self.cluster_dim  = params.getint('cluster_dim', 16)
+            self.is_sqrt      = params.getboolean('is_sqrt')
+
 
     def print(self):
         print('Model parameters:')

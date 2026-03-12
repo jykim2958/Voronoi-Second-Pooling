@@ -92,100 +92,6 @@ class NetVLADWrapper(nn.Module):
         assert x.shape[1] == self.output_dim
         return x    # Return (batch_size, output_dim) tensor
 
-
-class SALAD(nn.Module):
-    """
-    This class represents the Sinkhorn Algorithm for Locally Aggregated Descriptors (SALAD) model.
-
-    Attributes:
-        num_channels (int): The number of channels of the inputs (d).
-        num_clusters (int): The number of clusters in the model (m).
-        cluster_dim (int): The number of channels of the clusters (l).
-        token_dim (int): The dimension of the global scene token (g).
-        dropout (float): The dropout rate.
-    """
-    def __init__(self, input_dim, output_dim, num_clusters=64, cluster_dim=128, dropout=0.3, num_iters=3) -> None:
-        super().__init__()
-
-        self.num_channels = input_dim
-        self.metric_dim = output_dim
-        self.num_clusters= num_clusters
-        self.cluster_dim = cluster_dim
-        self.num_iters = num_iters
-
-        if dropout > 0:
-            dropout = nn.Dropout(dropout)
-        else:
-            dropout = nn.Identity()
-
-        # MLP for local features f_i
-        self.cluster_features = nn.Sequential(
-            nn.Conv1d(self.num_channels, 512, 1),
-            dropout,
-            nn.ReLU(),
-            nn.Conv1d(512, self.cluster_dim, 1)
-        )
-        # MLP for score matrix S
-        self.score = nn.Sequential(
-            nn.Conv1d(self.num_channels, 512, 1),
-            dropout,
-            nn.ReLU(),
-            nn.Conv1d(512, self.num_clusters, 1),
-        )
-        # # Dustbin parameter z
-        # self.dust_bin = nn.Parameter(torch.tensor(1.))
-        # Linear Map to shrink the global descriptor
-        self.linear_map = nn.Parameter(
-            torch.randn(self.num_clusters * self.cluster_dim, self.metric_dim) / math.sqrt(cluster_dim))
-
-    def forward(self, x: ME.SparseTensor):
-        # Transform ME sparse tensor to torch tensor
-        features = x.decomposed_features
-        features = torch.nn.utils.rnn.pad_sequence(features, batch_first=True)
-        features = features.permute(0, 2, 1)
-        features = nn.functional.relu(features)
-
-        # Simple MLPs to compute features and scores
-        f = self.cluster_features(features) # B x Cluster_dim x N
-        p = self.score(features)            # B x Num_Cluster x N
-
-        # # Sinkhorn algorithm NOTE original
-        # p = get_matching_probs(p, self.dust_bin, self.num_iters)
-        # p = torch.exp(p) # B x Num_Cluster+1 x N
-        # # Normalize to maintain mass
-        # p = p[:, :-1, :] # B x Num_Cluster x N
-        # Sinkhorn algorithm NOTE modified 20250207
-        p = get_matching_probs_2(p, self.num_iters)
-        p = torch.exp(p) # B x Num_Cluster x N
-        # Compute Global descriptor
-        f = nn.functional.normalize(torch.einsum('bin, bjn -> bij', f, p), p=2, dim=1)
-        # Linear map the descriptor to metrizables
-        f = f.flatten(1) @ self.linear_map
-        # return nn.functional.normalize(f, p=2, dim=-1)
-        return f
-
-
-class DPN(nn.Module):
-    def __init__(self, num_channels=128, clamp=False, eps=1e-6):
-        super(DPN, self).__init__()
-        self.avg_pool = nn.AdaptiveAvgPool1d(1)
-        self.projection = nn.Sequential(
-            nn.Linear(num_channels, num_channels//2),
-            nn.Dropout(0.1),
-            nn.ReLU(),
-            nn.Linear(num_channels//2, 1),
-            nn.Sigmoid()
-        )
-        self.eps = eps
-        self.clamp = clamp
-    def forward(self, x):
-        y = self.avg_pool(x.permute(0, 2, 1)).squeeze(-1)  # B x C x M => B x M x C => B x M
-        p = self.projection(y).unsqueeze(-1) # B x 1 x 1
-        sign = torch.sign(x)
-        power = torch.pow(torch.abs(x) + self.eps, p)
-        # return nn.functional.normalize(sign * power + x, dim=1) # NOTE previous
-        return sign * power + x
-
 class MAScore(nn.Module):
 
     def __init__(self, num_channels, num_clusters, num_heads=4, scale=1):
@@ -230,7 +136,7 @@ class MAScore(nn.Module):
             seq_list.append(x_token)
         return torch.nn.utils.rnn.pad_sequence(seq_list, batch_first=True).permute(0, 2, 1)
 
-class MyMethod(nn.Module):
+class VoronoiSecond(nn.Module):
     """
     This class represents the Sinkhorn Algorithm for Locally Aggregated Descriptors (SALAD) model.
 
@@ -241,18 +147,14 @@ class MyMethod(nn.Module):
         token_dim (int): The dimension of the global scene token (g).
         dropout (float): The dropout rate.
     """
-    def __init__(self, input_dim, output_dim, num_clusters=64, cluster_dim=128) -> None:
+    def __init__(self, input_dim, output_dim, num_clusters=64, cluster_dim=128, is_sqrt=False) -> None:
         super().__init__()
 
         self.num_channels = input_dim
         self.metric_dim = output_dim
         self.num_clusters= num_clusters
         self.cluster_dim = cluster_dim
-
-        #  if dropout > 0:
-        #      dropout = nn.Dropout(dropout)
-        #  else:
-        #      dropout = nn.Identity()
+        self.is_sqrt = is_sqrt
 
         # NOTE BatchNorm
         self.proj = nn.Sequential(
@@ -267,7 +169,6 @@ class MyMethod(nn.Module):
             nn.BatchNorm1d(256),
             nn.GELU(),
             nn.Conv1d(256, self.num_clusters, 1),
-            # nn.Softplus() # NOTE
         )
         # # NOTE Change Order
         # self.proj = nn.Sequential(
@@ -314,15 +215,6 @@ class MyMethod(nn.Module):
         #     nn.Linear(256, self.num_clusters)
         # )
 
-
-        # self.score = nn.Sequential(
-        #     nn.TransformerEncoderLayer(self.num_channels, 1, 2*self.num_channels,
-        #                                dropout=0, activation='gelu', batch_first=True),
-        #     nn.Linear(self.num_channels, self.num_clusters),
-        #     nn.Softmax(dim=-2)
-        # )
-        # self.score = MAScore(self.num_channels, self.num_clusters, num_heads=1, scale=0.2)
-
         # self.DPN = DPN(self.num_clusters) # NOTE
         # self.cluster_norm = nn.Identity()   # NOTE only scaling
         # self.cluster_norm = nn.BatchNorm1d(self.cluster_dim, affine=False, track_running_stats=False) # NOTE BatchNorm ablation
@@ -335,27 +227,9 @@ class MyMethod(nn.Module):
         # self.cluster_norm = intra_normalization # NOTE All about VLAD intra-normalization
         # self.cluster_norm = L2_normalization    # NOTE just a L2 normalization
 
-    # def ssmax(self, x, dim, s=1):
-    #     n = x.size(dim)
-    #     x = s * math.log(n) * x
-    #     return torch.softmax(x, dim=dim)
-
     def softmax_valid_len(self, x, lengths, dim):
         for i, valid_len in enumerate(lengths):
             x[i, :, :valid_len] = torch.softmax(x[i, :, :valid_len], dim=dim)
-            x[i, :, valid_len:] = 0
-        return x
-    # def softmax_valid_len(self, x, lengths, dim):
-    #     mask = torch.zeros_like(x).int()
-    #     for i, valid_len in enumerate(lengths):
-    #         mask[i, :, :valid_len] = 1
-    #     x = torch.where(mask.bool(), x, -np.inf)
-    #     x = torch.softmax(x, dim=-1)
-    #     return x
-
-    def ssmax_valid_len(self, x, lengths, dim, s=0.2):
-        for i, valid_len in enumerate(lengths):
-            x[i, :, :valid_len] = torch.softmax(s * math.log(valid_len) * x[i, :, :valid_len], dim=dim)
             x[i, :, valid_len:] = 0
         return x
 
@@ -439,80 +313,10 @@ class MyMethod(nn.Module):
         # f = f.transpose(1, 2).flatten(1) / self.num_clusters                               # NOTE no norm
         # f = f.transpose(1, 2).flatten(1)                                                   # NOTE do nothing for L2 norm later
         # f = self.cluster_norm(f)                                                           # NOTE L2 & intra normalization !!!!
-        f = self.cluster_norm(f).flatten(1) / math.sqrt(self.num_clusters) # NOTE 1/M for WP, 1/sqrt(M) for Oxford
-        # f = self.cluster_norm(f).flatten(1) / self.num_clusters
+        # NOTE 1/M for WP, 1/sqrt(M) for Oxford
+        if self.is_sqrt:
+            f = self.cluster_norm(f).flatten(1) / math.sqrt(self.num_clusters)
+        else:
+            f = self.cluster_norm(f).flatten(1) / self.num_clusters
         return f
 
-
-class MyAblation(nn.Module):
-
-    def __init__(self, input_dim, output_dim, num_clusters=64, cluster_dim=128, shrinkage=False) -> None:
-        super().__init__()
-
-        self.num_channels = input_dim
-        self.metric_dim = output_dim
-        self.num_clusters= num_clusters
-        self.cluster_dim = cluster_dim
-
-        # NOTE BatchNorm
-        self.proj = nn.Sequential(
-            nn.Conv1d(self.num_channels, 256, 1),
-            nn.BatchNorm1d(256),
-            nn.GELU(),
-            nn.Conv1d(256, self.cluster_dim, 1)
-        )
-        # MLP for score matrix S
-        self.score = nn.Sequential(
-            nn.Conv1d(self.num_channels, 256, 1),
-            nn.BatchNorm1d(256),
-            nn.GELU(),
-            nn.Conv1d(256, self.num_clusters, 1),
-        )
-        # self.cluster_norm = ClusterNormZCA(self.cluster_dim, shrinkage=shrinkage) # NOTE ZCA for Instance-wise
-        self.cluster_norm = ZCANormSVDPI_No_Shrink(self.cluster_dim, self.num_clusters) # NOTE ZCA for Instance-wise
-
-    def softmax_valid_len(self, x, lengths, dim):
-        for i, valid_len in enumerate(lengths):
-            x[i, :, :valid_len] = torch.softmax(x[i, :, :valid_len], dim=dim)
-            x[i, :, valid_len:] = 0
-        return x
-
-    def ssmax_valid_len(self, x, lengths, dim, s=0.2):
-        for i, valid_len in enumerate(lengths):
-            x[i, :, :valid_len] = torch.softmax(s * math.log(valid_len) * x[i, :, :valid_len], dim=dim)
-            x[i, :, valid_len:] = 0
-        return x
-
-    def get_whitenings(self, x: ME.SparseTensor):
-        # Transform ME sparse tensor to torch tensor
-        assert not self.training
-        features = x.decomposed_features
-
-        lengths = [len(feat) for feat in features]
-        features = torch.nn.utils.rnn.pad_sequence(features, batch_first=True)
-        features = features.permute(0, 2, 1) # NOTE
-        # Simple MLPs to compute features and scores
-        f = self.proj(features)  # B x C_out x N
-        p = self.score(features) # B x Num_Cluster x N
-        # p = torch.softmax(p, dim=-1)  # NOTE
-        p = self.softmax_valid_len(p, lengths, dim=-1)
-        # Compute Global descriptor
-        f = torch.einsum('bcn, bmn -> bcm', f, p) # NOTE
-        # # Compute Covariance Matrix
-        SIGMA_BASE, SIGMA_RBLW, SIGMA_ZCA, trans_BASE, trans_RBLW, trans_ZCA = self.cluster_norm.get_whitenings(f)
-        return SIGMA_BASE, SIGMA_RBLW, SIGMA_ZCA, trans_BASE, trans_RBLW, trans_ZCA
-
-    def forward(self, x: ME.SparseTensor):
-        # Transform ME sparse tensor to torch tensor
-        features = x.decomposed_features
-
-        lengths = [len(feat) for feat in features]
-        features = torch.nn.utils.rnn.pad_sequence(features, batch_first=True)
-        features = features.permute(0, 2, 1) # NOTE
-        # Simple MLPs to compute features and scores
-        f = self.proj(features)  # B x C_out x N
-        p = self.score(features) # B x Num_Cluster x N
-        p = self.softmax_valid_len(p, lengths, dim=-1)
-        f = torch.einsum('bcn, bmn -> bcm', f, p) # NOTE
-        f = self.cluster_norm(f).flatten(1) / math.sqrt(self.num_clusters)
-        return f

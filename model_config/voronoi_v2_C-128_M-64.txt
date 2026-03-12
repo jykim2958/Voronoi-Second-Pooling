@@ -1,0 +1,19 @@
+# MinkLoc3Dv2 model definition
+[MODEL]
+model=MinkLoc
+planes=64,128,64,32
+layers=1,1,1,1
+num_top_down=2
+conv0_kernel_size=5
+feature_size=256
+block=ECABasicBlock
+
+pooling=voronoi
+num_clusters=64
+cluster_dim=128
+is_sqrt=true
+
+coordinates=cartesian
+quantization_step=0.01
+
+normalize_embeddings=False

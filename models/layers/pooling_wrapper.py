@@ -1,10 +1,10 @@
-from models.layers.pooling import MAC, SPoC, GeM, NetVLADWrapper, SALAD, MyMethod, MyAblation
+from models.layers.pooling import MAC, SPoC, GeM, NetVLADWrapper, VoronoiSecond
 import torch.nn as nn
 import MinkowskiEngine as ME
 
 
 class PoolingWrapper(nn.Module):
-    def __init__(self, pool_method, in_dim, output_dim):
+    def __init__(self, pool_method, in_dim, output_dim, num_clusters=0, cluster_dim=0, is_sqrt=False):
         super().__init__()
 
         self.pool_method = pool_method
@@ -29,21 +29,18 @@ class PoolingWrapper(nn.Module):
         elif self.pool_method == 'netvladgc':
             # NetVLAD with Gating Context
             self.pooling = NetVLADWrapper(feature_size=in_dim, output_dim=output_dim, gating=True)
-        elif self.pool_method == 'salad':
-            # Baseline SALAD
-            self.pooling = SALAD(input_dim=in_dim, output_dim=output_dim, dropout=0.1, num_iters=8) # (0.3, 3)
-        elif self.pool_method == 'mymethod':
+        elif self.pool_method == 'voronoi':
             # My Method Experiment
             # 64, 128 (1) Oxford
             # 32, 64 # NOTE !!!
             # 32, 32
             # 16 16
             # 16 32
+            self.pooling = VoronoiSecond(input_dim=in_dim, output_dim=output_dim,
+                                         num_clusters=num_clusters, cluster_dim=cluster_dim, is_sqrt=is_sqrt)
             # self.pooling = MyMethod(input_dim=in_dim, output_dim=output_dim, num_clusters=64, cluster_dim=128)
-            self.pooling = MyMethod(input_dim=in_dim, output_dim=output_dim, num_clusters=16, cluster_dim=16)
+            # self.pooling = MyMethod(input_dim=in_dim, output_dim=output_dim, num_clusters=16, cluster_dim=16)
             # self.pooling = MyMethod(input_dim=in_dim, output_dim=output_dim, num_clusters=32, cluster_dim=32)
-        elif self.pool_method == 'myablation':
-            self.pooling = MyAblation(input_dim=in_dim, output_dim=output_dim, num_clusters=16, cluster_dim=16, shrinkage=False)
         else:
             raise NotImplementedError('Unknown pooling method: {}'.format(pool_method))
 

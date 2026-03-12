@@ -18,8 +18,16 @@ def model_factory(model_params: ModelParams):
         backbone = MinkFPN(in_channels=in_channels, out_channels=model_params.feature_size,
                            num_top_down=model_params.num_top_down, conv0_kernel_size=model_params.conv0_kernel_size,
                            block=block_module, layers=model_params.layers, planes=model_params.planes)
-        pooling = PoolingWrapper(pool_method=model_params.pooling, in_dim=model_params.feature_size,
-                                 output_dim=model_params.output_dim)
+        if model_params.pooling == 'voronoi':
+            pooling = PoolingWrapper(pool_method=model_params.pooling,
+                                     in_dim=model_params.feature_size,
+                                     output_dim=model_params.output_dim,
+                                     num_clusters=model_params.num_clusters,
+                                     cluster_dim=model_params.cluster_dim,
+                                     is_sqrt=model_params.is_sqrt)
+        else:
+            pooling = PoolingWrapper(pool_method=model_params.pooling, in_dim=model_params.feature_size,
+                                     output_dim=model_params.output_dim)
         model = MinkLoc(backbone=backbone, pooling=pooling, normalize_embeddings=model_params.normalize_embeddings)
     else:
         raise NotImplementedError('Model not implemented: {}'.format(model_params.model))

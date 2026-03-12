@@ -7,7 +7,11 @@ num_top_down=1
 conv0_kernel_size=5
 feature_size=256
 block=BasicBlock
-pooling=mymethod
+
+pooling=voronoi
+num_clusters=16
+cluster_dim=16
+is_sqrt=true
 
 coordinates=cartesian
 quantization_step=0.01
