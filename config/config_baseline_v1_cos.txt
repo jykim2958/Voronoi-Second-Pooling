@@ -1,0 +1,26 @@
+# MinkLoc3D training config using Baseline dataset
+[DEFAULT]
+# dataset_folder = /data3/pointnetvlad/benchmark_datasets
+dataset_folder = /data/OxfordRobotcar/benchmark_datasets
+
+[TRAIN]
+num_workers = 4
+batch_size = 16
+batch_size_limit = 256
+batch_expansion_rate = 1.4
+batch_expansion_th = 0.7
+
+lr = 5e-4
+epochs = 100
+# epochs = 200
+scheduler = CosineAnnealingLR
+min_lr = 5e-6
+aug_mode = 1
+weight_decay = 1e-4
+# weight_decay = 0
+
+loss = BatchHardTripletMarginLoss
+margin = 0.1
+
+train_file = training_queries_baseline_v2.pickle
+val_file = test_queries_baseline_v2.pickle

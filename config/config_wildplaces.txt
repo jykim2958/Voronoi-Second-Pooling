@@ -1,0 +1,22 @@
+[DEFAULT]
+dataset_folder = /data/jykim/000056372v005/data
+dataset_type = wildplaces
+
+[TRAIN]
+num_workers = 8
+batch_size = 512
+batch_split_size = 32
+val_batch_size = 128
+
+lr = 1e-3
+epochs = 100
+scheduler = CosineAnnealingLR
+min_lr = 1e-5
+aug_mode = 1
+weight_decay = 1e-4
+loss = TruncatedSmoothAP
+tau1 = 0.01
+positives_per_query = 4
+
+train_file = training_wild-places.pickle
+val_file = testing_wild-places.pickle
