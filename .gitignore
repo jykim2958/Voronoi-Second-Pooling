@@ -3,3 +3,6 @@ __pycache__/
 *.npy
 *.npz
 pnv_experiment_results.txt
+wandb/
+weights/model_*.pth
+backup/
