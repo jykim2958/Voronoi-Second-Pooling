@@ -3,6 +3,8 @@
 
 import numpy as np
 import os
+import sys
+sys.path.append(f"{os.getcwd()}")
 import pandas as pd
 from sklearn.neighbors import KDTree
 import pickle
