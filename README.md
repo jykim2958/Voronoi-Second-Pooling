@@ -1,4 +1,5 @@
 # Voronoi-based Second-order Descriptor with Whitened Metric in LiDAR Place Recognition [ICRA 2026]
+![figure](fig_arch.png)
 
 ## About
 This repository contains the official implementation of *Voronoi-based Second-order Descriptor with Whitened Metric in LiDAR Place Recognition* (in press ICRA 2026) and reproducible experiments from the corresponding paper.
