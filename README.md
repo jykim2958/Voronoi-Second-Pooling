@@ -12,7 +12,7 @@ This implementation is tested with following dependencies in Ubuntu 18.04, Pytho
 * pandas==1.5.3
 * wandb
 
-We recommend building conda environment first with pytorch installation.
+We recommend building conda environment and pytorch installation before compiling MinkowskiEngine.
 Make sure to exactly match `cudatoolkit` package version identical to the cuda dependency of pytorch;
 otherwise MinkowskiEngine library would not be compiled.
 You can verify the cuda compiler version with `nvcc -V` command.
@@ -131,3 +131,4 @@ python eval/pnv_evaluate.py --config config/config_wildplaces.txt --model_config
 This implementation is based on [jac99/MinkLoc3Dv2](https://github.com/jac99/MinkLoc3Dv2), [cvlab-epfl/Power-Iteration-SVD](https://github.com/cvlab-epfl/Power-Iteration-SVD), [csiro-robotics/Wild-Places](https://github.com/csiro-robotics/Wild-Places), and [shenyanqing1105/ForestLPR-CVPR2025](https://github.com/shenyanqing1105/ForestLPR-CVPR2025).
 
 ## Citation
+We will update this section shortly.
