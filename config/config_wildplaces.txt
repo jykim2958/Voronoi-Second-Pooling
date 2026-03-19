@@ -1,5 +1,5 @@
 [DEFAULT]
-dataset_folder = /data/jykim/000056372v005/data
+dataset_folder = /data/datasets/000056372v005_jykim/data
 dataset_type = wildplaces
 
 [TRAIN]

@@ -1,7 +1,7 @@
 # MinkLoc3D training config using Baseline dataset
 [DEFAULT]
 # dataset_folder = /data3/pointnetvlad/benchmark_datasets
-dataset_folder = /data/OxfordRobotcar/benchmark_datasets
+dataset_folder = /data/datasets/OxfordRobotcar/benchmark_datasets
 
 [TRAIN]
 num_workers = 4
