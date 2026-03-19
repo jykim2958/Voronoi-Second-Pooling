@@ -1,7 +1,8 @@
 # Voronoi-based Second-order Descriptor with Whitened Metric in LiDAR Place Recognition [ICRA 2026]
+![figure](fig_arch.png)
 
 ## About
-This repository contains the official implementation of *Voronoi-based Second-order Descriptor with Whitened Metric in LiDAR Place Recognition* (in press ICRA 2026) and reproducible experiments from the corresponding paper.
+This repository contains the official implementation of *Voronoi-based Second-order Descriptor with Whitened Metric in LiDAR Place Recognition* (in press ICRA 2026) and reproducible experiments from the corresponding paper. [arXiv](https://arxiv.org/abs/2603.14974)
 
 ## Dependencies
 This implementation is tested with following dependencies in Ubuntu 18.04, Python 3.8, and `cudatoolkit=11.6.0`.
@@ -11,7 +12,7 @@ This implementation is tested with following dependencies in Ubuntu 18.04, Pytho
 * pandas==1.5.3
 * wandb
 
-We recommend building conda environment first with pytorch installation.
+We recommend building conda environment and pytorch installation before compiling MinkowskiEngine.
 Make sure to exactly match `cudatoolkit` package version identical to the cuda dependency of pytorch;
 otherwise MinkowskiEngine library would not be compiled.
 You can verify the cuda compiler version with `nvcc -V` command.
@@ -130,3 +131,15 @@ python eval/pnv_evaluate.py --config config/config_wildplaces.txt --model_config
 This implementation is based on [jac99/MinkLoc3Dv2](https://github.com/jac99/MinkLoc3Dv2), [cvlab-epfl/Power-Iteration-SVD](https://github.com/cvlab-epfl/Power-Iteration-SVD), [csiro-robotics/Wild-Places](https://github.com/csiro-robotics/Wild-Places), and [shenyanqing1105/ForestLPR-CVPR2025](https://github.com/shenyanqing1105/ForestLPR-CVPR2025).
 
 ## Citation
+
+```
+@misc{kim2026voronoi,
+      title={Voronoi-based Second-order Descriptor with Whitened Metric in LiDAR Place Recognition}, 
+      author={Jaein Kim and Hee Bin Yoo and Dong-Sig Han and Byoung-Tak Zhang},
+      year={2026},
+      eprint={2603.14974},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2603.14974}, 
+}
+```
