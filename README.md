@@ -50,7 +50,7 @@ After the tuple generation, the dataset directory should look like follows:
 ```
 
 ### Wild-Places
-Refer to [csiro-robotics/Wild-Places](https://github.com/csiro-robotics/Wild-Places) for downloading the dataset.
+Refer to [csiro-robotics/Wild-Places](https://github.com/csiro-robotics/Wild-Places) for downloading the dataset [(until version 5)](https://data.csiro.au/collection/62124).
 ```bash
 # We already set the default positive threshold as 3m.
 # Set --pos_thresh argument to configure the positive threshold distance.
